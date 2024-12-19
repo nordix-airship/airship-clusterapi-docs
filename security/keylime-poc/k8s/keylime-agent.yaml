@@ -1,0 +1,169 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    deprecated.daemonset.template.generation: "1"
+    meta.helm.sh/release-name: hhkl
+    meta.helm.sh/release-namespace: keylime
+  creationTimestamp: "2024-10-24T11:42:03Z"
+  generation: 1
+  labels:
+    app.kubernetes.io/instance: hhkl
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: keylime-agent
+    app.kubernetes.io/version: latest
+    helm.sh/chart: keylime-agent-0.1.0
+  name: hhkl-keylime-agent
+  namespace: keylime
+  resourceVersion: "3324"
+  uid: b271fc2c-af4d-4626-a981-2bda2bcf7fb2
+spec:
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: hhkl
+      app.kubernetes.io/name: keylime-agent
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/instance: hhkl
+        app.kubernetes.io/name: keylime-agent
+    spec:
+      containers:
+      - command:
+        - /bin/keylime_agent
+        env:
+        - name: KEYLIME_AGENT_CONTACT_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        - name: KEYLIME_AGENT_SERVER_KEY
+          value: /etc/keylime/agent/server/certs/server-private.pem
+        - name: KEYLIME_AGENT_SERVER_CERT
+          value: /etc/keylime/agent/server/certs/server-cert.crt
+        - name: KEYLIME_AGENT_RUN_AS
+        - name: KEYLIME_AGENT_AGENT_DATA_PATH
+          value: /var/lib/keylime-persistent/agent_data.json
+        - name: RUST_LOG
+          value: keylime_agent=info
+        envFrom:
+        - configMapRef:
+            name: hhkl-keylime-config
+        image: quay.io/keylime/keylime_agent:latest
+        imagePullPolicy: IfNotPresent
+        name: keylime-agent
+        ports:
+        - containerPort: 9002
+          name: agent
+          protocol: TCP
+        resources: {}
+        securityContext:
+          privileged: true
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/keylime/agent/server/certs
+          name: certs
+          readOnly: true
+        - mountPath: /var/lib/keylime/cv_ca/
+          name: cvca-certs
+          readOnly: true
+        - mountPath: /var/lib/keylime-persistent
+          name: persistent
+        - mountPath: /var/lib/keylime/secure
+          name: secure
+          readOnly: true
+        - mountPath: /tmp
+          name: tmpfs
+        - mountPath: /sys/kernel/security
+          name: securityfs
+          readOnly: true
+      dnsPolicy: ClusterFirst
+      initContainers:
+      - command:
+        - /bin/bash
+        - -c
+        - |
+          # fail if any of the commands fail
+          set -e
+
+          # copy the CA directory where we'll generate the certs from
+          cp -Rv /keylime/cv_ca /tmp/
+          cd /tmp/cv_ca
+
+          # now generate a new cert for the agent
+          # we need to do this on every start as the pod IP changes which is being used as the connection address
+          keylime_ca -d /tmp/cv_ca --command create --name "$POD_IP"
+
+          # copy them to the expected destinations
+          cp -v /tmp/cv_ca/${POD_IP}-private.pem /certs/server-private.pem
+          cp -v /tmp/cv_ca/${POD_IP}-cert.crt /certs/server-cert.crt
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: status.podIP
+        envFrom:
+        - configMapRef:
+            name: hhkl-keylime-config
+        - secretRef:
+            name: hhkl-keylime-ca-password
+        image: quay.io/keylime/keylime_tenant:latest
+        imagePullPolicy: IfNotPresent
+        name: keylime-agent-init
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /certs
+          name: certs
+        - mountPath: /keylime/cv_ca/
+          name: cvca-certs
+          readOnly: true
+        - mountPath: /tmp
+          name: tmpfs
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      serviceAccount: hhkl-keylime-agent
+      serviceAccountName: hhkl-keylime-agent
+      terminationGracePeriodSeconds: 30
+      volumes:
+      - hostPath:
+          path: /sys/kernel/security
+          type: Directory
+        name: securityfs
+      - hostPath:
+          path: /var/lib/keylime
+          type: DirectoryOrCreate
+        name: persistent
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 10Mi
+        name: secure
+      - emptyDir:
+          medium: Memory
+          sizeLimit: 10Mi
+        name: certs
+      - name: cvca-certs
+        secret:
+          defaultMode: 420
+          secretName: hhkl-keylime-certs
+      - emptyDir: {}
+        name: tmpfs
+  updateStrategy:
+    rollingUpdate:
+      maxSurge: 0
+      maxUnavailable: 1
+    type: RollingUpdate
+status:
+  currentNumberScheduled: 1
+  desiredNumberScheduled: 1
+  numberMisscheduled: 0
+  numberReady: 0
+  numberUnavailable: 1
+  observedGeneration: 1
+  updatedNumberScheduled: 1
