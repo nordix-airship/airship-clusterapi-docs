@@ -3,29 +3,29 @@ kind: Namespace
 metadata:
   labels:
     control-plane: controller-manager
-  name: baremetal-operator-system-test2
+  name: baremetal-operator-system
 ---
 apiVersion: v1
 data:
-  CACHEURL: http://172.23.0.1/images
-  DEPLOY_KERNEL_URL: http://172.23.0.2:6180/images/ironic-python-agent.kernel
-  DEPLOY_RAMDISK_URL: http://172.23.0.2:6180/images/ironic-python-agent.initramfs
-  DHCP_RANGE: 172.23.0.10,172.23.0.100
+  CACHEURL: http://172.22.0.1/images
+  DEPLOY_KERNEL_URL: http://172.22.0.2:6180/images/ironic-python-agent.kernel
+  DEPLOY_RAMDISK_URL: http://172.22.0.2:6180/images/ironic-python-agent.initramfs
+  DHCP_RANGE: 172.22.0.10,172.22.0.100
   HTTP_PORT: "6180"
   INSPECTOR_REVERSE_PROXY_SETUP: "false"
-  IRONIC_ENDPOINT: http://172.23.0.2:6385/v1/
+  IRONIC_ENDPOINT: http://172.22.0.2:6385/v1/
   IRONIC_FAST_TRACK: "true"
-  IRONIC_INSPECTOR_ENDPOINT: http://172.23.0.2:5050/v1/
+  IRONIC_INSPECTOR_ENDPOINT: http://172.22.0.2:5050/v1/
   IRONIC_KERNEL_PARAMS: console=ttyS0
   LISTEN_ALL_INTERFACES: '"false"'
   PROVISIONING_CIDR: "24"
-  PROVISIONING_INTERFACE: ironicendpoint2
-  PROVISIONING_IP: 172.23.0.2
+  PROVISIONING_INTERFACE: ironicendpoint
+  PROVISIONING_IP: 172.22.0.2
   RESTART_CONTAINER_CERTIFICATE_UPDATED: "false"
 kind: ConfigMap
 metadata:
   name: baremetal-operator-ironic-bmo-configmap-kf5k84ff8c
-  namespace: baremetal-operator-system-test2
+  namespace: baremetal-operator-system
 ---
 apiVersion: v1
 data:
@@ -33,14 +33,14 @@ data:
 kind: Secret
 metadata:
   name: baremetal-operator-mariadb-password-ftkgc8tmkc
-  namespace: baremetal-operator-system-test2
+  namespace: baremetal-operator-system
 type: Opaque
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: baremetal-operator-ironic
-  namespace: baremetal-operator-system-test2
+  namespace: baremetal-operator-system
 spec:
   minReadySeconds: 10
   replicas: 1
